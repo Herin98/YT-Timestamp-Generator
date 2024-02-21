@@ -1,13 +1,13 @@
 from flask import Flask, render_template, request
 from dotenv import find_dotenv, load_dotenv
 from youtube_transcript_api import YouTubeTranscriptApi
+from langchain_core.messages import HumanMessage,SystemMessage
+from langchain_google_genai import ChatGoogleGenerativeAI
 import os
 import re
 import google.generativeai as genai
+import json
 
-client = genai.configure(api_key="AIzaSyCHdM5I2L9EIwKNssBLaf6occrADIsfCh4")
-client = genai.configure(api_key=os.environ.get("GOOGLE_API_KEY"))
-#genai.configure(api_key="AIzaSyCHdM5I2L9EIwKNssBLaf6occrADIsfCh4")
 
 load_dotenv(find_dotenv())
 
@@ -73,8 +73,6 @@ def format_timestamps(json_data):
     return "\n".join(formatted_timestamps)
 
 def generate_timestamps(transcript):
-    # Todo: maybe use langchain to make sure that in cases when the transcript's tokens exceed the
-    # limit, we can bypass the token limit issues!!! )
     template = f"""
             As an AI skilled in analyzing YouTube video content, your task is to create up to 6 accurate timestamps from the provided transcript. Each timestamp should represent a distinct topic or main idea in the video.
 
@@ -94,24 +92,18 @@ def generate_timestamps(transcript):
             {transcript}
        
         """
+    
+    
+    os.environ["GOOGLE_API_KEY"] = "--Your API key here--"
+    chatllm = ChatGoogleGenerativeAI(model="gemini-pro", convert_system_message_to_human=True, temperature=0.0)
 
-    response = client.chat.completions.create(
-        model=llm_model,
-        messages=[
-            {
-                "role": "system",
-                "content": "You are a very knowledgeable Programmer and Youtuber",
-            },
-            {
-                "role": "user",
-                "content": f"{template}",
-            },
-        ],
-        temperature=0.0
-        # max_tokens=150,
-    )
-    print(response.choices[0].message.content4)
-    return response.choices[0].message.content
+    response = chatllm.invoke([
+    SystemMessage(content="You are a very knowledgeable Programmer and Youtuber"),
+    HumanMessage(content=f"{template}")
+    ])
+    print("Response from LLM:")
+    print(response.content)
+    return response.content
 
 
 if __name__ == "__main__":
